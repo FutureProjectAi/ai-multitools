@@ -11,7 +11,7 @@ export default function Home() {
         <h1>AI Multitools — Starter</h1>
         <p>This is a minimal Next.js starter prepared by assistant.</p>
         <ul>
-          <li>Text → Speech</li>
+          <li><a href="/tts">Text → Speech</a></li>
           <li>Text → Image</li>
           <li>Image → Text (OCR)</li>
           <li>Image → Video</li>
