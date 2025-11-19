@@ -10,17 +10,16 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: "gpt-4o-mini-tts",
         voice: "alloy",
-        input: text
+        input: text,
       }),
     });
 
     const audio = await response.arrayBuffer();
-
     res.setHeader("Content-Type", "audio/mpeg");
     res.status(200).send(Buffer.from(audio));
   } catch (error) {
