@@ -1,36 +1,67 @@
-// pages/api/tts.js
-import OpenAI from "openai";
+import { useState } from "react";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // pakai ENV dari Vercel
-});
+export default function TextToSpeech() {
+  const [text, setText] = useState("Halo, ini percobaan text to speech dari proyek AI Multitools.");
+  const [audioUrl, setAudioUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setAudioUrl("");
+
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || body.error || "Unknown error");
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+    } catch (err) {
+      console.error(err);
+      setError("Error: Gagal generate TTS (OpenAI error)");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const { text } = req.body || {};
-  if (!text || !text.trim()) {
-    return res.status(400).json({ error: "Text is required" });
-  }
+  return (
+    <div style={{ maxWidth: 800, margin: "40px auto", fontFamily: "system-ui" }}>
+      <h1>Text → Speech (TTS)</h1>
+      <form onSubmit={handleSubmit}>
+        <textarea
+          rows={5}
+          style={{ width: "100%" }}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <button type="submit" disabled={loading} style={{ marginTop: 8 }}>
+          {loading ? "Generating..." : "Generate TTS"}
+        </button>
+      </form>
 
-  try {
-    const mp3 = await openai.audio.speech.create({
-      model: "tts-1",          // model TTS OpenAI :contentReference[oaicite:0]{index=0}
-      voice: "alloy",
-      input: text,
-    });
+      {error && <p style={{ color: "red", marginTop: 8 }}>{error}</p>}
 
-    const buffer = Buffer.from(await mp3.arrayBuffer());
-
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Content-Length", buffer.length);
-    res.status(200).send(buffer);
-  } catch (err) {
-    console.error("TTS error:", err);
-    res
-      .status(500)
-      .json({ error: "OpenAI error", detail: err.message ?? "Unknown error" });
-  }
+      {audioUrl && (
+        <div style={{ marginTop: 12 }}>
+          <audio src={audioUrl} controls />
+          <div>
+            <a href={audioUrl} download="tts.mp3">
+              Download
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
