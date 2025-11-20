@@ -1,96 +1,36 @@
-import { useState } from "react";
+// pages/api/tts.js
+import OpenAI from "openai";
 
-export default function TTS() {
-  const [text, setText] = useState("");
-  const [audioUrl, setAudioUrl] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // pakai ENV dari Vercel
+});
 
-  const generateTTS = async () => {
-    setLoading(true);
-    setAudioUrl(null);
-    setErrorMsg("");
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-    try {
-      const response = await fetch("/api/tts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text }),
-      });
+  const { text } = req.body || {};
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: "Text is required" });
+  }
 
-      // Kalau server balas error, tampilkan pesannya
-      if (!response.ok) {
-        let msg = "Gagal generate TTS.";
-        try {
-          const data = await response.json();
-          if (data?.error) {
-            msg = `${msg} (${data.error})`;
-          }
-          if (data?.details) {
-            console.error("Server details:", data.details);
-          }
-        } catch (e) {
-          // kalau bukan JSON, abaikan
-        }
-        setErrorMsg(msg);
-        setLoading(false);
-        return;
-      }
+  try {
+    const mp3 = await openai.audio.speech.create({
+      model: "tts-1",          // model TTS OpenAI :contentReference[oaicite:0]{index=0}
+      voice: "alloy",
+      input: text,
+    });
 
-      // Berhasil: ambil audio
-      const blob = await response.blob();
+    const buffer = Buffer.from(await mp3.arrayBuffer());
 
-      // Kalau tipe bukan audio, jangan diputar
-      if (!blob.type.startsWith("audio")) {
-        setErrorMsg("Respon bukan file audio. Coba lagi.");
-        setLoading(false);
-        return;
-      }
-
-      const url = URL.createObjectURL(blob);
-      setAudioUrl(url);
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Terjadi error jaringan / server.");
-      setLoading(false);
-    }
-  };
-
-  return (
-    <main style={{ maxWidth: 800, margin: "40px auto", fontFamily: "Arial" }}>
-      <h1>Text → Speech (TTS)</h1>
-
-      <textarea
-        style={{ width: "100%", height: 150, padding: 10 }}
-        placeholder="Masukkan teks..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
-
-      <div style={{ marginTop: 10 }}>
-        <button
-          onClick={generateTTS}
-          disabled={loading || !text.trim()}
-          style={{ padding: "10px 20px", cursor: "pointer" }}
-        >
-          {loading ? "Menghasilkan audio..." : "Generate TTS"}
-        </button>
-      </div>
-
-      {errorMsg && (
-        <p style={{ marginTop: 10, color: "red" }}>
-          Error: {errorMsg}
-        </p>
-      )}
-
-      {audioUrl && (
-        <div style={{ marginTop: 20 }}>
-          <audio controls src={audioUrl} />
-        </div>
-      )}
-    </main>
-  );
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Length", buffer.length);
+    res.status(200).send(buffer);
+  } catch (err) {
+    console.error("TTS error:", err);
+    res
+      .status(500)
+      .json({ error: "OpenAI error", detail: err.message ?? "Unknown error" });
+  }
 }
