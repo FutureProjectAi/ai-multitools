@@ -1,8 +1,7 @@
-// pages/api/tts.js
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // pakai ENV dari Vercel
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export default async function handler(req, res) {
@@ -17,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const mp3 = await openai.audio.speech.create({
-      model: "tts-1",          // model TTS OpenAI :contentReference[oaicite:0]{index=0}
+      model: "tts-1",
       voice: "alloy",
       input: text,
     });
